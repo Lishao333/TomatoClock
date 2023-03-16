@@ -1,8 +1,8 @@
 #include "oled.h"
 #include "stdlib.h"
 #include "oledfont.h"  	 
+#include "bmp.h"  	 
 #include "delay.h"
-#include "bmp.h"
 #include "iic.h"
 
 u8 OLED_GRAM[144][8];
@@ -257,7 +257,7 @@ void OLED_ShowString(u8 x,u8 y,u8 *chr,u8 size1)
 	while((*chr>=' ')&&(*chr<='~'))//判断是不是非法字符!
 	{
 		OLED_ShowChar(x,y,*chr,size1);
-		x+=size1/2;
+		x+=(size1*CHAR_BASE_SIZE_WIDTH)/2; //modify by lishaolin 
 		if(x>128-size1)  //换行
 		{
 			x=0;
@@ -304,6 +304,7 @@ void OLED_ShowNum(u8 x,u8 y,u32 num,u8 len,u8 size1)
 //num:汉字对应的序号
 void OLED_ShowChinese(u8 x,u8 y,u8 num,u8 size1)
 {
+#if 0
 	u8 i,m,n=0,temp,chr1;
 	u8 x0=x,y0=y;
 	u8 size3=size1/8;
@@ -336,6 +337,7 @@ void OLED_ShowChinese(u8 x,u8 y,u8 num,u8 size1)
 			y=y0;
 		 }
 	}
+#endif
 }
 
 //num 显示汉字的个数
@@ -460,7 +462,7 @@ void OLED_Test (void)
 	LED_ON;
 	while(1)
 	{
-		OLED_ShowPicture(0,0,128,8,BMP1);
+		//OLED_ShowPicture(0,0,128,8,BMP1);
 		delay_ms(500);
 		OLED_Clear();
 		OLED_ShowChinese(0,0,0,16);//中
@@ -498,9 +500,17 @@ void OLED_Test (void)
 }
 /////////////////////////////////////////////////////////////////////////////////
 
-
+#if 1
 // Character size set info ///////////////////////////////////////////////////////////
-stCharSizeSetInfo char_sizes_set_info = {0};
+stCharSizeSetInfo g_char_sizes_set_info = {0};
+
+//caculator char size
+int GetCharSize (int size_number)
+{
+	int char_size = CHAR_BASE_SIZE_HEIGHT*size_number;
+	
+	return char_size;
+}
 
 //only could use character size(3, 4, 6)
 int SetCharSizeSetInfo (stCharSizeSetInfo *set, enuCHAR_SIZE_NUMBER char_size)
@@ -512,80 +522,265 @@ int SetCharSizeSetInfo (stCharSizeSetInfo *set, enuCHAR_SIZE_NUMBER char_size)
 	{
 		set->width  = CHAR_BASE_SIZE_WIDTH*set->size_number;
 		set->height = CHAR_BASE_SIZE_HEIGHT*set->size_number;		
-		
 		return char_size;
 	}
 	
 	return 0;
 }
 
+void DefaultSetCharSizeSetInfo ()
+{
+	SetCharSizeSetInfo (&g_char_sizes_set_info, CHAR_DEFAULT_SIZE_NUMBER);
+}
+
 stCharSizeSetInfo* GetCharSizeSetInfo ()
 {
-	return &char_sizes_set_info;
+	return &g_char_sizes_set_info;
 }
 
 int GetCharSizeSetInfo_SizeNumber ()
 {
-	return char_sizes_set_info.size_number;
+	return g_char_sizes_set_info.size_number;
 }
 
 int GetCharSizeSetInfo_Hight ()
 {
-	return char_sizes_set_info.height;
+	return g_char_sizes_set_info.height;
 }
 
 int GetCharSizeSetInfo_Width ()
 {
-	return char_sizes_set_info.width;
+	return g_char_sizes_set_info.width;
 }
 /////////////////////////////////////////////////////////////////////////////////
-
-
+#endif
+#if 1
 // cursor info //////////////////////////////////////////////////////////////////
-stCursorInfo cursor_info = {0};
-int ReflashCursorInfo (int line, int row)
+stCursorInfo g_cursor_info = {0};
+
+int ReflashCursorInfo (stPointInfo point)
 {
-	cursor_info.point.x += row*GetCharSizeSetInfo_Width();
-	cursor_info.point.y += line*GetCharSizeSetInfo_Hight();
-	cursor_info.size = GetCharSizeSetInfo_SizeNumber();
-	cursor_info.distanse_to_start.distance_x = cursor_info.point.x;
-	cursor_info.distanse_to_start.distance_y = cursor_info.point.y;
-	cursor_info.distanse_to_end.distance_x = X_MAX_VALUE - cursor_info.point.x;
-	cursor_info.distanse_to_end.distance_y = Y_MAX_VALUE - cursor_info.point.y;
+	g_cursor_info.point.x += point.x+GetCharSizeSetInfo_Width();
+	g_cursor_info.point.y += point.y+GetCharSizeSetInfo_Hight();
+	g_cursor_info.size_number = GetCharSizeSetInfo_SizeNumber();
+	g_cursor_info.distanse_to_start.distance_x = g_cursor_info.point.x;
+	g_cursor_info.distanse_to_start.distance_y = g_cursor_info.point.y;
+	g_cursor_info.distanse_to_end.distance_x = X_MAX_VALUE - g_cursor_info.point.x;
+	g_cursor_info.distanse_to_end.distance_y = Y_MAX_VALUE - g_cursor_info.point.y;
 	
 	return 0;
 }
 
 int ResetCursorInfo ()
 {
-	memset(&cursor_info, 0, sizeof(cursor_info));
-	cursor_info.size = GetCharSizeSetInfo_SizeNumber();
+	memset(&g_cursor_info, 0, sizeof(g_cursor_info));
+	g_cursor_info.size_number = GetCharSizeSetInfo_SizeNumber();
 	
 	return 0;
 }
-/////////////////////////////////////////////////////////////////////////////////
 
-
-// OLED show string control /////////////////////////////////////////////////////
-void OLED_ShowString_612 (int line, int row, unsigned char* str, int len)
+stCursorInfo* GetCursorInfo ()
 {
-	OLED_ShowString(cursor_info.point.x,cursor_info.point.y,str,cursor_info.size);//6*12 “ABC”
+	return &g_cursor_info;
+}
+
+int GetCursorInfo_Size ()
+{
+	return g_cursor_info.size_number;
+}
+
+int SetCursorInfo_Point_X (uint8_t x)
+{
+	g_cursor_info.point.x = x;
+}
+
+int GetCursorInfo_Point_X ()
+{
+	return g_cursor_info.point.x;
+}
+
+int SetCursorInfo_Point_Y (uint8_t y)
+{
+	g_cursor_info.point.y = y;
+}
+
+int GetCursorInfo_Point_Y ()
+{
+	return g_cursor_info.point.y;
+}	
+
+int GetCursorInfo_DistanceToStart_DistanceX ()
+{
+	return g_cursor_info.distanse_to_start.distance_x;
+}
+
+int GetCursorInfo_DistanceToStart_DistanceY ()
+{
+	return g_cursor_info.distanse_to_start.distance_y;
+}
+
+int GetCursorInfo_DistanceToEnd_DistanceX ()
+{
+	return g_cursor_info.distanse_to_end.distance_x;
+}
+
+int GetCursorInfo_DistanceToEnd_DistanceY ()
+{
+	return g_cursor_info.distanse_to_end.distance_y;
+}
+/////////////////////////////////////////////////////////////////////////////////
+#endif
+#if 1
+// OLED show string control /////////////////////////////////////////////////////
+stShowStrInfo g_show_str_info = {0};
+
+//更新显示的内容的信息
+int ReflashShowStrInfo (unsigned char* str, int len)
+{
+	int i=0;
+	stCursorInfo* cursor_info = NULL;
+	int start_pos = g_show_str_info.count; //从之前显示内容的最后一个字节的下一个字节开始
+	int end_pos = g_show_str_info.count+len; 
+	
+	//check str and len
+	if (!str || !len)
+	{
+		return -1;
+	}
+	
+	if (start_pos > sizeof(g_show_str_info.show_char_info))
+	{
+		printf("The screen is full, Please clear all!!!\r\n");
+		return -1;
+	}
+	
+	if (end_pos > sizeof(g_show_str_info.show_char_info))
+	{
+		printf("The len of string is out of remain space(%d)!!!\r\n", len);
+		end_pos = sizeof(g_show_str_info.show_char_info);
+	}
+	
+	//设置每一个需要显示的字节的信息
+	for (i=start_pos; i<end_pos; i++)
+	{
+		//设置每一个需要显示的字节的信息
+		g_show_str_info.show_char_info[i].character[0] = str[i];
+		g_show_str_info.show_char_info[i].size_number = GetCharSizeSetInfo_SizeNumber();
+		g_show_str_info.show_char_info[i].height = GetCharSizeSetInfo_Hight();
+		g_show_str_info.show_char_info[i].width = GetCharSizeSetInfo_Width();
+		
+		//获取最新的光标信息xy
+		cursor_info = GetCursorInfo ();
+		g_show_str_info.show_char_info[i].point.x = GetCursorInfo_Point_X();
+		g_show_str_info.show_char_info[i].point.y = GetCursorInfo_Point_Y();
+		
+		//设置每一个需要显示的字节的坐标x
+		if (i == 0) //如果是第一个
+		{
+			//在当前行内继续显示
+			g_show_str_info.show_char_info[i].point.x += g_show_str_info.show_char_info[i].width; //同一行，y不变
+		}
+		else
+		{
+			if (g_show_str_info.show_char_info[i].point.x + g_show_str_info.show_char_info[i].width <= X_MAX_VALUE)
+			{
+				//在当前行内继续显示
+				g_show_str_info.show_char_info[i].point.x += g_show_str_info.show_char_info[i].width; //同一行，y不变
+			}
+			else
+			{
+				//换行
+				g_show_str_info.show_char_info[i].point.x = 0;
+				
+				//并且设置每一个需要显示的字节的坐标y
+				if (g_show_str_info.show_char_info[i].point.y + g_show_str_info.show_char_info[i].height <= Y_MAX_VALUE)
+				{
+					//换到下一行
+					g_show_str_info.show_char_info[i].point.y += g_show_str_info.show_char_info[i].height; //换行，同时y改变;
+				}
+				else
+				{
+					//从第一行开始
+					g_show_str_info.show_char_info[i].point.y = 0;
+				}
+			}
+		}
+		
+		//更新光标信息xy
+		SetCursorInfo_Point_X (g_show_str_info.show_char_info[i].point.x);
+		SetCursorInfo_Point_Y (g_show_str_info.show_char_info[i].point.y);	
+		
+		//设置每一个需要显示的字节的编号
+		g_show_str_info.show_char_info[i].idx = i;
+	}
+	
+	//设置所有需要显示的字节的总长度
+	g_show_str_info.count += len;
+	
+	return len;
+}
+
+void ClearAllShowStrInfo ()
+{
+	memset(&g_show_str_info, 0, sizeof(g_show_str_info));
+}
+#endif
+#if 1
+void show_test ()
+{
+	unsigned char c = 'A';
+	//OLED_ShowString(8,16,"Lishaolin",16);
+	OLED_ShowChar(48,48,c++,16);//显示ASCII字符
 	OLED_Refresh();
-	ReflashCursorInfo (line, row);
+}
+void OLED_ShowStringControl (char* str, int len)
+{	
+	int i=0;
+
+	//更新显示的内容的信息
+	int ret = ReflashShowStrInfo ((unsigned char*)str, len);
+	
+	//填充内容到缓冲区，并刷新显示屏
+	for (i=0; i<g_show_str_info.count; i++)
+	{
+		OLED_ShowChar(g_show_str_info.show_char_info[i].point.x, 
+					  g_show_str_info.show_char_info[i].point.y, 
+					  g_show_str_info.show_char_info[i].character[0], 
+					  GetCharSize (g_show_str_info.show_char_info[i].size_number));
+	}
+	OLED_Refresh();
 }
 
 void OLED_ClearAll ()
 {
 	OLED_Clear();
 	ResetCursorInfo ();
+	ClearAllShowStrInfo ();
 }
 void OLED_BackSpace ()
 {
-	//cursor_info.x -= 
+	int i = 0;
+	stShowCharInfo *p_show_char_info = &g_show_str_info.show_char_info[--g_show_str_info.count];
+	memset (p_show_char_info, 0, sizeof(stShowCharInfo));
+	p_show_char_info -= 1;
+	SetCursorInfo_Point_X (p_show_char_info->point.x);
+	SetCursorInfo_Point_Y (p_show_char_info->point.y);	
+	
+	OLED_Clear();
+	
+	//填充内容到缓冲区，并刷新显示屏
+	for (i=0; i<g_show_str_info.count; i++)
+	{
+		OLED_ShowChar(g_show_str_info.show_char_info[i].point.x, 
+					  g_show_str_info.show_char_info[i].point.y, 
+					  g_show_str_info.show_char_info[i].character[0], 
+					  GetCharSize (g_show_str_info.show_char_info[i].size_number));
+	}
+	OLED_Refresh();
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-
+#endif
 
 
 

@@ -48,8 +48,29 @@ OF SUCH DAMAGE.
 #include "iic.h"
 
 #define FOUNCTION_TEST_ENABLE    1
+void DefaultSetCharSizeSetInfo ();
+void OLED_ShowStringControl (char* str, int len);
+void show_test ();
+void OLED_BackSpace ();
 void FunctionTest ()
 {
+	char test_str[30] = {"Hello LiShaolin 112233"};
+		
+	DefaultSetCharSizeSetInfo ();
+
+	//OLED_Test ();
+	OLED_ClearAll ();
+	OLED_ShowStringControl (test_str, strlen(test_str));
+	
+	delay_ms(1000);
+	OLED_BackSpace ();
+	delay_ms(1000);
+	OLED_BackSpace ();
+	delay_ms(1000);
+	OLED_BackSpace ();
+	delay_ms(1000);
+	
+	OLED_ShowStringControl (test_str, strlen(test_str));
 	while(1)
 	{
 #if 0		
@@ -61,9 +82,7 @@ void FunctionTest ()
 #endif
 #if 1		
 		//oled test
-		//OLED_Test ();
-		char test_str[20] = {"Hello LiShaolin"};
-		OLED_ShowString_612 (LINE_612_0, ROW_612_0, test_str, strlen(test_str));
+		//OLED_ShowString_612 (LINE_612_0, ROW_612_0, test_str, strlen(test_str));
 #endif		
 		delay_ms(1000);
 		printf("FunctionTest():Test...\r\n");

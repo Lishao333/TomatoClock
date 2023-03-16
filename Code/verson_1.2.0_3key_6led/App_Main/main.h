@@ -9,7 +9,7 @@
 #define SOFT_VER      "TomatoClock_1.1.0"
 #define ISSUE_DATA    "2022-10-14"
 
-#define DEBUG_ENABLE    1
+#define DEBUG_ENABLE    0
 #if DEBUG_ENABLE
 	#define DEB_LOG(format, ...)    printf(format, ##__VA_ARGS__)
 #else

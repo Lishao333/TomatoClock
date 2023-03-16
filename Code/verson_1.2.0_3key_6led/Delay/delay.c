@@ -1,110 +1,102 @@
-/*!
-    \file    systick.c
-    \brief   the systick configuration in polling mode
+/************************************************************
+Copyright (C), 2013-2022
+FileName: Delay.h
+Author  : 祥子  QQ:570525287
+Version : 1.0
+Date    : 2022-1-5
+Description: 
+Function List:
+History    : 
+<author> <time> <version > <desc>
+***********************************************************/
 
-    \version 2020-09-30, V1.0.0, firmware for GD32F10x
-*/
+#define USE_DELAY_TIMER	1
 
-/*
-    Copyright (c) 2020, GigaDevice Semiconductor Inc.
+//======================使用定时器做延时===========================
+#if(USE_DELAY_TIMER)
 
-    Redistribution and use in source and binary forms, with or without modification, 
-are permitted provided that the following conditions are met:
+#include "gd32f10x_timer.h"
+#include <stdlib.h>
 
-    1. Redistributions of source code must retain the above copyright notice, this 
-       list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright notice, 
-       this list of conditions and the following disclaimer in the documentation 
-       and/or other materials provided with the distribution.
-    3. Neither the name of the copyright holder nor the names of its contributors 
-       may be used to endorse or promote products derived from this software without 
-       specific prior written permission.
+#define DELAY_TIMER				TIMER6
+#define RCU_DELAY_TIMER			RCU_TIMER6
+#define DELAY_TIMER_IRQHandler	TIMER6_IRQHandler
+#define DELAY_TIMER_IRQn		TIMER6_IRQn
 
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
-IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
-INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR 
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
-OF SUCH DAMAGE.
-*/
+//定时器不分频
+#define DELAY_TIMER_PRESCALER	0	//分频值0,频率和系统时钟一样
+//1us的定时计数是
+#define DELAY_TIMER_PERIOD		(SystemCoreClock / 1000 /1000)-1	//71	//SystemCoreClock / 1000 /1000
 
-#include "gd32f10x.h"
-#include "delay.h"
+#define TMR_ENABLE()	TIMER_CTL0(DELAY_TIMER)|=(uint32_t)TIMER_CTL0_CEN	//开启定时器
+#define TMR_DISABEL()	TIMER_CTL0(DELAY_TIMER) &= ~(uint32_t)TIMER_CTL0_CEN //关闭定时器
+#define TMR_CLR_FLAG()	TIMER_INTF(DELAY_TIMER) = (~(uint32_t)TIMER_INT_FLAG_UP)	//清除中断标志位
+#define TMR_SET_CNT(X)	TIMER_CNT(DELAY_TIMER) = (uint32_t)(X)	//配置计数器
 
-volatile static float count_1us = 0;
-volatile static float count_1ms = 0;
+uint16_t us_count;
 
-/*!
-    \brief      configure systick
-    \param[in]  none
-    \param[out] none
-    \retval     none
-*/
-void systick_config(void)
+/*----------------------------------------------------------------------------------
+Function   :Delay_Timer_Init
+Description:初始化延时函数定时器
+Input      :无
+Retrun     :无
+----------------------------------------------------------------------------------*/
+void delay_init(void)
 {
-    /* systick clock source is from HCLK/8 */
-    systick_clksource_set(SYSTICK_CLKSOURCE_HCLK_DIV8);
-    count_1us = (float)SystemCoreClock/8000000;
-    count_1ms = (float)count_1us * 1000;
+	timer_parameter_struct tmr;
+
+	rcu_periph_clock_enable(RCU_DELAY_TIMER);
+    timer_deinit(DELAY_TIMER);
+
+	 /* TIMERx configuration */
+    tmr.prescaler         = DELAY_TIMER_PRESCALER;
+    tmr.alignedmode       = TIMER_COUNTER_EDGE;
+    tmr.counterdirection  = TIMER_COUNTER_UP;
+    tmr.period            = DELAY_TIMER_PERIOD;
+    tmr.clockdivision     = TIMER_CKDIV_DIV1;
+    tmr.repetitioncounter = 0;
+    timer_init(DELAY_TIMER,&tmr);
+	
+    timer_interrupt_enable(DELAY_TIMER,TIMER_INT_UP); //使能更新中断
+	nvic_irq_enable(DELAY_TIMER_IRQn,2,0); //使能中断线
+	TMR_DISABEL();
 }
 
-/*!
-    \brief      delay a time in microseconds in polling mode
-    \param[in]  count: count in microseconds
-    \param[out] none
-    \retval     none
-*/
-void delay_us(uint32_t count)
+
+/*----------------------------------------------------------------------------------
+Function   :DELAY_TIMER_IRQHandler
+Description:定时器中断
+Input      :无
+Retrun     :无
+----------------------------------------------------------------------------------*/
+void DELAY_TIMER_IRQHandler(void)
 {
-    uint32_t ctl;
-    
-    /* reload the count value */
-    SysTick->LOAD = (uint32_t)(count * count_1us);
-    /* clear the current count value */
-    SysTick->VAL = 0x0000U;
-    /* enable the systick timer */
-    SysTick->CTRL = SysTick_CTRL_ENABLE_Msk;
-    /* wait for the COUNTFLAG flag set */
-    do{
-        ctl = SysTick->CTRL;
-    }while((ctl&SysTick_CTRL_ENABLE_Msk)&&!(ctl & SysTick_CTRL_COUNTFLAG_Msk));
-    /* disable the systick timer */
-    SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
-    /* clear the current count value */
-    SysTick->VAL = 0x0000U;
+    //timer_interrupt_flag_clear(DELAY_TIMER, TIMER_INT_FLAG_UP); //清除中断标志位
+	TMR_CLR_FLAG();
+    us_count++;
 }
 
-/*!
-    \brief      delay a time in milliseconds in polling mode
-    \param[in]  count: count in milliseconds
-    \param[out] none
-    \retval     none
-*/
-void delay_ms(uint32_t count)
+
+/*----------------------------------------------------------------------------------
+Function   :Delay_1us
+Description:延时us
+Input      :count:微秒数
+Retrun     :无
+----------------------------------------------------------------------------------*/
+void delay_us(uint16_t count)
 {
-    uint32_t ctl;
-    
-    /* reload the count value */
-    SysTick->LOAD = (uint32_t)(count * count_1ms);
-    /* clear the current count value */
-    SysTick->VAL = 0x0000U;
-    /* enable the systick timer */
-    SysTick->CTRL = SysTick_CTRL_ENABLE_Msk;
-    /* wait for the COUNTFLAG flag set */
-    do{
-        ctl = SysTick->CTRL;
-    }while((ctl&SysTick_CTRL_ENABLE_Msk)&&!(ctl & SysTick_CTRL_COUNTFLAG_Msk));
-    /* disable the systick timer */
-    SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
-    /* clear the current count value */
-    SysTick->VAL = 0x0000U;
+	TMR_SET_CNT(0);	//timer_counter_value_config(DELAY_TIMER,0);	
+	TMR_ENABLE();	//timer_enable
+	us_count = 0;		
+	while (us_count < count);
+	TMR_DISABEL();	//timer_disable
 }
 
-void delay_init()
+void delay_ms(uint16_t count)
 {
-	systick_config ();
+   while (count--)
+   {
+	   delay_us(1000);	//为了避开中断
+   }          
 }
+#endif

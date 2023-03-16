@@ -23,6 +23,8 @@
 #ifndef __OLED_H
 #define __OLED_H			
 
+#include <stdio.h>	   
+
 #include "stdlib.h"	   
 #include "gd32f10x_it.h" 
 #include "gd32f10x_gpio.h"
@@ -85,8 +87,9 @@
 #define Y_MAX_VALUE                63
 #define UNIT_BASE_SIZE_WIDTH       2
 #define UNIT_BASE_SIZE_HEIGHT      2
-#define CHAR_BASE_SIZE_WIDTH       UNIT_BASE_SIZE_WIDTH     //2
-#define CHAR_BASE_SIZE_HEIGHT      UNIT_BASE_SIZE_HEIGHT*2  //4
+#define CHAR_BASE_SIZE_WIDTH       (UNIT_BASE_SIZE_WIDTH)     //2
+#define CHAR_BASE_SIZE_HEIGHT      (UNIT_BASE_SIZE_HEIGHT*2)  //4
+#define CHAR_BASE_SIZE             (UNIT_BASE_SIZE_HEIGHT*2)  //4
 
 typedef enum{
 	CHAR_SIZE_NUMBER_1 = 1,   
@@ -97,17 +100,19 @@ typedef enum{
 	CHAR_SIZE_NUMBER_6,         
 }enuCHAR_SIZE_NUMBER;
 
-#define CHAR_612_SIZE_WIDTH        CHAR_BASE_SIZE_WIDTH *CHAR_SIZE_NUMBER_3  //6
-#define CHAR_612_SIZE_HEIGHT       CHAR_BASE_SIZE_HEIGHT*CHAR_SIZE_NUMBER_3  //12
-#define CHAR_816_SIZE_WIDTH        CHAR_BASE_SIZE_WIDTH *CHAR_SIZE_NUMBER_4  //8
-#define CHAR_816_SIZE_HEIGHT       CHAR_BASE_SIZE_HEIGHT*CHAR_SIZE_NUMBER_4  //16
-#define CHAR_1224_SIZE_WIDTH       CHAR_BASE_SIZE_WIDTH *CHAR_SIZE_NUMBER_6  //12
-#define CHAR_1224_SIZE_HEIGHT      CHAR_BASE_SIZE_HEIGHT*CHAR_SIZE_NUMBER_6  //24
+#define CHAR_612_SIZE_WIDTH        (CHAR_BASE_SIZE_WIDTH *CHAR_SIZE_NUMBER_3)  //6
+#define CHAR_612_SIZE_HEIGHT       (CHAR_BASE_SIZE_HEIGHT*CHAR_SIZE_NUMBER_3)  //12
+#define CHAR_816_SIZE_WIDTH        (CHAR_BASE_SIZE_WIDTH *CHAR_SIZE_NUMBER_4)  //8
+#define CHAR_816_SIZE_HEIGHT       (CHAR_BASE_SIZE_HEIGHT*CHAR_SIZE_NUMBER_4)  //16
+#define CHAR_1224_SIZE_WIDTH       (CHAR_BASE_SIZE_WIDTH *CHAR_SIZE_NUMBER_6)  //12
+#define CHAR_1224_SIZE_HEIGHT      (CHAR_BASE_SIZE_HEIGHT*CHAR_SIZE_NUMBER_6)  //24
 
-#define CHAR_DEFAULT_SIZE          16
+#define CHAR_DEFAULT_SIZE_NUMBER   CHAR_SIZE_NUMBER_4
 #define CHAR_DEFAULT_SIZE_WIDTH    CHAR_816_SIZE_WIDTH
 #define CHAR_DEFAULT_SIZE_HEIGHT   CHAR_816_SIZE_HEIGHT
-#define CHAR_DISPLAY_MAX_NUM       ((X_MAX_VALUE/CHAR_612_SIZE_WIDTH) * (Y_MAX_VALUE/CHAR_612_SIZE_HEIGHT))
+#define CHAR_DEFAULT_SIZE          CHAR_BASE_SIZE_HEIGHT*CHAR_SIZE_NUMBER_4
+
+#define CHAR_DISPLAY_MAX_NUM       ((X_MAX_VALUE/CHAR_612_SIZE_WIDTH) * (Y_MAX_VALUE/CHAR_612_SIZE_HEIGHT)) //21*5=105
 
 typedef enum{
 	LINE_612_0,
@@ -206,27 +211,25 @@ typedef struct {
 }stCharSizeSetInfo;
 
 typedef struct {
-	uint8_t width;
-	uint8_t height;
-	uint8_t line_num;
-	uint8_t row_num;
-	uint8_t size_number;
-}stCharacterInfo;
-
-typedef struct {
 	stPointInfo point;
-	uint8_t size;
+	uint8_t size_number;
 	stDistance distanse_to_start;
 	stDistance distanse_to_end;
 }stCursorInfo;
 
-typedef struct{
-	stPointInfo point_info;
-	stCharacterInfo char_info;
-}stSingleDisplayCharacterInfo;
+typedef struct {
+	unsigned char character[1];
+	uint8_t width;
+	uint8_t height;
+	uint8_t size_number;
+	uint8_t idx;
+	stPointInfo point;
+}stShowCharInfo;
 
-extern stSingleDisplayCharacterInfo all_display_character_info[CHAR_DISPLAY_MAX_NUM];
-
+typedef struct {
+	stShowCharInfo show_char_info[CHAR_DISPLAY_MAX_NUM];
+	uint8_t count;
+}stShowStrInfo;	
 
 void OLED_ShowString_612 (int line, int row, unsigned char* str, int len);
 void OLED_ClearAll ();
