@@ -39,10 +39,6 @@
 #define X_WIDTH 	128
 #define Y_WIDTH 	64	    		
 
-//-----------------测试LED端口定义---------------- 
-#define LED_ON gpio_bit_reset(GPIOD,GPIO_PIN_2)
-#define LED_OFF gpio_bit_set(GPIOD,GPIO_PIN_2)
-
 //-----------------OLED端口定义---------------- 
 #define OLED_RCU        RCU_GPIOB
 #define OLED_PORT       GPIOB					   
@@ -258,6 +254,79 @@ void OLED_WR_BP(u8 x,u8 y);
 void OLED_ShowPicture(u8 x0,u8 y0,u8 x1,u8 y1,u8 BMP[]);
 void OLED_Init(void);
 void OLED_Test (void);
+
+/** add by LiShaolin *******************************/
+// Character size set info ///////////////////////////////////////////////////////////
+extern stCharSizeSetInfo g_char_sizes_set_info;
+
+//caculator char size
+int GetCharSize (int size_number);
+
+//only could use character size(3, 4, 6)
+int SetCharSizeSetInfo (stCharSizeSetInfo *set, enuCHAR_SIZE_NUMBER char_size);
+
+void DefaultSetCharSizeSetInfo ();
+
+stCharSizeSetInfo* GetCharSizeSetInfo ();
+
+int GetCharSizeSetInfo_SizeNumber ();
+
+int GetCharSizeSetInfo_Hight ();
+
+int GetCharSizeSetInfo_Width ();
+/////////////////////////////////////////////////////////////////////////////////
+
+
+// cursor info //////////////////////////////////////////////////////////////////
+extern stCursorInfo g_cursor_info;
+
+int ReflashCursorInfo (stPointInfo point);
+
+int ResetCursorInfo ();
+
+//更新光标信息xy	
+int ReflashCursorInfo_PointInfo (stShowCharInfo *last_show_char_info);
+
+//光标换行
+int CursorLineFeed (uint8_t height);
+
+stCursorInfo* GetCursorInfo ();
+
+int GetCursorInfo_Size ();
+
+int GetCursorInfo_Point_X ();
+
+int GetCursorInfo_Point_Y ();
+
+int GetCursorInfo_DistanceToStart_DistanceX ();
+
+int GetCursorInfo_DistanceToStart_DistanceY ();
+
+int GetCursorInfo_DistanceToEnd_DistanceX ();
+
+int GetCursorInfo_DistanceToEnd_DistanceY ();
+/////////////////////////////////////////////////////////////////////////////////
+
+
+// OLED show string control /////////////////////////////////////////////////////
+extern stShowStrInfo g_show_str_info;
+
+//更新显示的内容的信息
+int ReflashShowStrInfo (unsigned char* str, int len);
+
+void ClearAllShowStrInfo ();
+
+//遍历显示字符串的所有显示字节的显示信息
+void PrintfShowStrInfo ();
+
+void OLED_ShowStringControl (char* str, int len);
+
+void OLED_ClearAll ();
+
+void OLED_BackSpace ();
+
+void OLED_ShowStringProcess ();
+/////////////////////////////////////////////////////////////////////////////////
 
 #endif  
 	 

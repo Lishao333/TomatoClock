@@ -4,6 +4,14 @@
 #include "bmp.h"  	 
 #include "delay.h"
 #include "iic.h"
+#include "led.h"
+
+#define OLED_DEBUG_ENABLE    1
+#if OLED_DEBUG_ENABLE
+	#define OLED_DBG(format, ...)    printf(format, ##__VA_ARGS__)
+#else
+	#define OLED_DBG(format, ...)
+#endif
 
 u8 OLED_GRAM[144][8];
 
@@ -560,6 +568,7 @@ stCursorInfo g_cursor_info = {0};
 
 int ReflashCursorInfo (stPointInfo point)
 {
+	//光标移到下一个字节起始位置
 	g_cursor_info.point.x += point.x+GetCharSizeSetInfo_Width();
 	g_cursor_info.point.y += point.y+GetCharSizeSetInfo_Hight();
 	g_cursor_info.size_number = GetCharSizeSetInfo_SizeNumber();
@@ -579,6 +588,86 @@ int ResetCursorInfo ()
 	return 0;
 }
 
+//光标换行
+int CursorLineFeed (uint8_t height)
+{
+	//下一个待显示字节从下一行的起始处开始显示
+	g_cursor_info.point.x = 0;
+	
+	//并且更新下一个待显示字节的坐标y
+	if (g_cursor_info.point.y + height <= Y_MAX_VALUE) //是否需要从第一行开始
+	{
+		//换到下一行
+		g_cursor_info.point.y += height; //换行，同时y改变;
+		OLED_DBG ("CursorLineFeed(): Go to next line\r\n");
+		
+		return 1;
+	}
+	else
+	{
+		//从第一行开始
+		g_cursor_info.point.y = 0;
+		OLED_DBG ("CursorLineFeed(): Go to first line\r\n");
+		
+		return 0;
+	}
+	
+	return -1;
+}
+
+//更新光标信息xy	
+int ReflashCursorInfo_PointInfo (stShowCharInfo *last_show_char_info)
+{
+	//获取最后一个显示字节的位置信息
+	g_cursor_info.point.x = last_show_char_info->point.x;
+	g_cursor_info.point.y = last_show_char_info->point.y;
+	
+	//更新下一个待显示字节的位置信息
+	//如果是第一行第一个
+	if (g_cursor_info.point.x==0 && g_cursor_info.point.y==0) 
+	{
+		//下一个待显示字节在当前行内继续显示
+		g_cursor_info.point.x += last_show_char_info->width; //同一行，y不变
+	}
+	else
+	{
+		//更新下一个待显示字节的坐标x
+		if (g_cursor_info.point.x + last_show_char_info->width <= X_MAX_VALUE) //是否需要换行
+		{
+			//下一个待显示字节在当前行内继续显示
+			g_cursor_info.point.x += last_show_char_info->width; //同一行，y不变
+		}
+		else
+		{
+			//光标换行
+			CursorLineFeed (last_show_char_info->height);
+		}
+	}
+
+	//更新distance
+	g_cursor_info.distanse_to_start.distance_x = g_cursor_info.point.x;
+	g_cursor_info.distanse_to_start.distance_y = g_cursor_info.point.y;
+	g_cursor_info.distanse_to_end.distance_x = X_MAX_VALUE - g_cursor_info.point.x;
+	g_cursor_info.distanse_to_end.distance_y = Y_MAX_VALUE - g_cursor_info.point.y;	
+	
+	return 0;
+}
+
+//检查屏幕显示是否已满
+int CheckScreenDisplayIsFull (uint8_t width ,uint8_t height)
+{
+	if (g_cursor_info.distanse_to_end.distance_x < width
+		&& g_cursor_info.distanse_to_end.distance_y < height
+		&& g_cursor_info.distanse_to_start.distance_x > 0
+		&& g_cursor_info.distanse_to_start.distance_y > 0)
+	{
+		printf("The screen is full, Please clear all!!!\r\n");
+		return 1;
+	}
+	
+	return 0;
+}
+
 stCursorInfo* GetCursorInfo ()
 {
 	return &g_cursor_info;
@@ -589,19 +678,9 @@ int GetCursorInfo_Size ()
 	return g_cursor_info.size_number;
 }
 
-int SetCursorInfo_Point_X (uint8_t x)
-{
-	g_cursor_info.point.x = x;
-}
-
 int GetCursorInfo_Point_X ()
 {
 	return g_cursor_info.point.x;
-}
-
-int SetCursorInfo_Point_Y (uint8_t y)
-{
-	g_cursor_info.point.y = y;
 }
 
 int GetCursorInfo_Point_Y ()
@@ -638,7 +717,7 @@ stShowStrInfo g_show_str_info = {0};
 int ReflashShowStrInfo (unsigned char* str, int len)
 {
 	int i=0;
-	stCursorInfo* cursor_info = NULL;
+	stCursorInfo* cursor_info = GetCursorInfo (); //获取最新的光标信息
 	int start_pos = g_show_str_info.count; //从之前显示内容的最后一个字节的下一个字节开始
 	int end_pos = g_show_str_info.count+len; 
 	
@@ -648,81 +727,71 @@ int ReflashShowStrInfo (unsigned char* str, int len)
 		return -1;
 	}
 	
-	if (start_pos > sizeof(g_show_str_info.show_char_info))
-	{
-		printf("The screen is full, Please clear all!!!\r\n");
-		return -1;
-	}
-	
-	if (end_pos > sizeof(g_show_str_info.show_char_info))
-	{
-		printf("The len of string is out of remain space(%d)!!!\r\n", len);
-		end_pos = sizeof(g_show_str_info.show_char_info);
-	}
-	
 	//设置每一个需要显示的字节的信息
-	for (i=start_pos; i<end_pos; i++)
+	for (i=0; i<len; i++)
 	{
-		//设置每一个需要显示的字节的信息
+		//检查是否需要换行显示
+		if (str[i] == '\n')
+		{
+			//光标换行
+			CursorLineFeed (GetCharSizeSetInfo_Hight());
+			
+			//跳过本字节
+			continue;
+		}
+		
+		//检查屏幕显示是否已满
+		if (CheckScreenDisplayIsFull ( GetCharSizeSetInfo_Width() ,GetCharSizeSetInfo_Hight()))
+		{
+			return i;
+		}
+		
+		//设置每一个需要显示的字节的编号
+		g_show_str_info.show_char_info[i].idx = i;
+		
+		//设置每一个需要显示的字节的内容、大小
 		g_show_str_info.show_char_info[i].character[0] = str[i];
 		g_show_str_info.show_char_info[i].size_number = GetCharSizeSetInfo_SizeNumber();
 		g_show_str_info.show_char_info[i].height = GetCharSizeSetInfo_Hight();
 		g_show_str_info.show_char_info[i].width = GetCharSizeSetInfo_Width();
 		
-		//获取最新的光标信息xy
-		cursor_info = GetCursorInfo ();
-		g_show_str_info.show_char_info[i].point.x = GetCursorInfo_Point_X();
-		g_show_str_info.show_char_info[i].point.y = GetCursorInfo_Point_Y();
+		//设置每一个需要显示的字节的位置信息
+		g_show_str_info.show_char_info[i].point.x = cursor_info->point.x;
+		g_show_str_info.show_char_info[i].point.y = cursor_info->point.y;
 		
-		//设置每一个需要显示的字节的坐标x
-		if (i == 0) //如果是第一个
-		{
-			//在当前行内继续显示
-			g_show_str_info.show_char_info[i].point.x += g_show_str_info.show_char_info[i].width; //同一行，y不变
-		}
-		else
-		{
-			if (g_show_str_info.show_char_info[i].point.x + g_show_str_info.show_char_info[i].width <= X_MAX_VALUE)
-			{
-				//在当前行内继续显示
-				g_show_str_info.show_char_info[i].point.x += g_show_str_info.show_char_info[i].width; //同一行，y不变
-			}
-			else
-			{
-				//换行
-				g_show_str_info.show_char_info[i].point.x = 0;
-				
-				//并且设置每一个需要显示的字节的坐标y
-				if (g_show_str_info.show_char_info[i].point.y + g_show_str_info.show_char_info[i].height <= Y_MAX_VALUE)
-				{
-					//换到下一行
-					g_show_str_info.show_char_info[i].point.y += g_show_str_info.show_char_info[i].height; //换行，同时y改变;
-				}
-				else
-				{
-					//从第一行开始
-					g_show_str_info.show_char_info[i].point.y = 0;
-				}
-			}
-		}
-		
-		//更新光标信息xy
-		SetCursorInfo_Point_X (g_show_str_info.show_char_info[i].point.x);
-		SetCursorInfo_Point_Y (g_show_str_info.show_char_info[i].point.y);	
-		
-		//设置每一个需要显示的字节的编号
-		g_show_str_info.show_char_info[i].idx = i;
+		//更新光标信息xy	
+		ReflashCursorInfo_PointInfo (&g_show_str_info.show_char_info[i]);
 	}
 	
 	//设置所有需要显示的字节的总长度
 	g_show_str_info.count += len;
 	
-	return len;
+	return i;
 }
 
 void ClearAllShowStrInfo ()
 {
 	memset(&g_show_str_info, 0, sizeof(g_show_str_info));
+}
+
+//遍历显示字符串的所有显示字节的显示信息
+void PrintfShowStrInfo ()
+{
+	int i = 0;
+	
+	printf("PrintfShowStrInfo():****************** start ********************\r\n");
+	printf("g_show_str_info.count:%d;\r\n", g_show_str_info.count);
+	for (i=0; i<sizeof(g_show_str_info.show_char_info)/sizeof(stShowCharInfo); i++)
+	{
+		printf("g_show_str_info.show_char_info[%d].character:%c;\r\n", i, g_show_str_info.show_char_info[i].character[0]);
+		printf("g_show_str_info.show_char_info[%d].width    :%d;\r\n", i, g_show_str_info.show_char_info[i].width);
+		printf("g_show_str_info.show_char_info[%d].height   :%d;\r\n", i, g_show_str_info.show_char_info[i].height);
+		printf("g_show_str_info.show_char_info[%d].width    :%d;\r\n", i, g_show_str_info.show_char_info[i].width);
+		printf("g_show_str_info.show_char_info[%d].point.x  :%d;\r\n", i, g_show_str_info.show_char_info[i].point.x);
+		printf("g_show_str_info.show_char_info[%d].point.y  :%d;\r\n", i, g_show_str_info.show_char_info[i].point.y);
+		printf("g_show_str_info.show_char_info[%d].idx      :%d;\r\n", i, g_show_str_info.show_char_info[i].idx);
+	}
+	printf("PrintfShowStrInfo():****************** end ********************\r\n");
 }
 #endif
 #if 1
@@ -739,6 +808,9 @@ void OLED_ShowStringControl (char* str, int len)
 
 	//更新显示的内容的信息
 	int ret = ReflashShowStrInfo ((unsigned char*)str, len);
+	
+	//遍历显示字符串的所有显示字节的显示信息
+	//PrintfShowStrInfo ();
 	
 	//填充内容到缓冲区，并刷新显示屏
 	for (i=0; i<g_show_str_info.count; i++)
@@ -757,18 +829,22 @@ void OLED_ClearAll ()
 	ResetCursorInfo ();
 	ClearAllShowStrInfo ();
 }
+
 void OLED_BackSpace ()
 {
 	int i = 0;
+	
 	stShowCharInfo *p_show_char_info = &g_show_str_info.show_char_info[--g_show_str_info.count];
 	memset (p_show_char_info, 0, sizeof(stShowCharInfo));
-	p_show_char_info -= 1;
-	SetCursorInfo_Point_X (p_show_char_info->point.x);
-	SetCursorInfo_Point_Y (p_show_char_info->point.y);	
+		
+	//更新光标信息xy	
+	ReflashCursorInfo_PointInfo (--p_show_char_info);
 	
-	OLED_Clear();
+	//遍历显示字符串的所有显示字节的显示信息
+	//PrintfShowStrInfo ();
 	
 	//填充内容到缓冲区，并刷新显示屏
+	OLED_Clear();
 	for (i=0; i<g_show_str_info.count; i++)
 	{
 		OLED_ShowChar(g_show_str_info.show_char_info[i].point.x, 
@@ -777,8 +853,27 @@ void OLED_BackSpace ()
 					  GetCharSize (g_show_str_info.show_char_info[i].size_number));
 	}
 	OLED_Refresh();
+	
+	OLED_DBG("OLED_BackSpace ()\r\n");
 }
 
+void OLED_ShowStringProcess ()
+{
+	static uint32_t remian_sec_old = 0;
+	uint32_t remian_sec = get_led_work_remain_s ()%60;
+	uint8_t remain_min = get_led_work_remain_s ()/60;
+	uint8_t remain_hour = remain_min/60;
+	char remaine_work_time[20] = {0};
+	
+	if (remian_sec_old != remian_sec)
+	{
+		remian_sec_old = remian_sec;
+		sprintf(remaine_work_time, "%d:%d:%d", remain_hour, remain_min, remian_sec);
+		
+		OLED_ClearAll ();
+		OLED_ShowStringControl (remaine_work_time, strlen(remaine_work_time));
+	}
+}
 /////////////////////////////////////////////////////////////////////////////////
 #endif
 

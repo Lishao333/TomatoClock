@@ -57,5 +57,6 @@ void led_off ();
 void set_led_work_time (int num);
 void add_led_work_peroid (int peroids);
 void reset_led_work_peroid ();
+unsigned int get_led_work_remain_s ();
 void led_work_process ();
 #endif /* __LED_H */

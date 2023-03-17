@@ -47,21 +47,19 @@ OF SUCH DAMAGE.
 #include "uart.h"
 #include "iic.h"
 
-#define FOUNCTION_TEST_ENABLE    1
+#define FOUNCTION_TEST_ENABLE    0
 void DefaultSetCharSizeSetInfo ();
 void OLED_ShowStringControl (char* str, int len);
 void show_test ();
 void OLED_BackSpace ();
 void FunctionTest ()
 {
-	char test_str[30] = {"Hello LiShaolin 112233"};
+	char test_str[30] = {"Hello LiShaolin 112233\n"};
 		
-	DefaultSetCharSizeSetInfo ();
-
 	//OLED_Test ();
 	OLED_ClearAll ();
 	OLED_ShowStringControl (test_str, strlen(test_str));
-	
+	/*
 	delay_ms(1000);
 	OLED_BackSpace ();
 	delay_ms(1000);
@@ -69,6 +67,8 @@ void FunctionTest ()
 	delay_ms(1000);
 	OLED_BackSpace ();
 	delay_ms(1000);
+	*/
+	OLED_ShowStringControl (test_str, strlen(test_str));
 	
 	OLED_ShowStringControl (test_str, strlen(test_str));
 	while(1)
@@ -98,21 +98,26 @@ void FunctionTest ()
 */
 int main(void)
 {
+	char start_log[50] = {0};
 	int ret = 0;
-	//led_init();
-	//key_init();
+	led_init();
+	key_init();
 	delay_init();
     pc_com_init();
 	iic_init();
 	OLED_Init();
-	//init_key_press ();
-    printf("*************************** %s, %s ***************************", SOFT_VER, ISSUE_DATA);
+	DefaultSetCharSizeSetInfo ();
+	init_key_press ();
+	
+    sprintf(start_log, "SOFT_VER: %s \nISSUE_DATA: %s \n", SOFT_VER, ISSUE_DATA);
+	OLED_ShowStringControl (start_log, strlen(start_log));
 	
 #if !FOUNCTION_TEST_ENABLE	
 	while(1)
 	{
 		key_process();
 		led_work_process ();
+		OLED_ShowStringProcess ();
 	}
 #else	
 	FunctionTest ();
