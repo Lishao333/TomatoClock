@@ -614,6 +614,16 @@
             </File>
           </Files>
         </Group>
+        <Group>
+          <GroupName>Systick</GroupName>
+          <Files>
+            <File>
+              <FileName>systick.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Systick\systick.c</FilePath>
+            </File>
+          </Files>
+        </Group>
       </Groups>
     </Target>
     <Target>
@@ -1224,6 +1234,16 @@
             </File>
           </Files>
         </Group>
+        <Group>
+          <GroupName>Systick</GroupName>
+          <Files>
+            <File>
+              <FileName>systick.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Systick\systick.c</FilePath>
+            </File>
+          </Files>
+        </Group>
       </Groups>
     </Target>
     <Target>
@@ -1559,7 +1579,7 @@
               <MiscControls></MiscControls>
               <Define>USE_STDPERIPH_DRIVER,GD32F10X_HD</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Firmware_Lib\CMSIS\GD\GD32F10x\Include;..\Firmware_Lib\CMSIS;..\Utilities;..\Utilities\LCD_common;..\Firmware_Lib\GD32F10x_standard_peripheral\Include;..\Key;..\Led;..\Uart;..\Firmware_Lib;..\Oled;..\Delay;..\App_Main;..\IIC</IncludePath>
+              <IncludePath>..\Firmware_Lib\CMSIS\GD\GD32F10x\Include;..\Firmware_Lib\CMSIS;..\Utilities;..\Utilities\LCD_common;..\Firmware_Lib\GD32F10x_standard_peripheral\Include;..\Key;..\Led;..\Uart;..\Firmware_Lib;..\Oled;..\Delay;..\App_Main;..\IIC;..\Systick</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1832,6 +1852,16 @@
               <FileName>iic.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\IIC\iic.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Systick</GroupName>
+          <Files>
+            <File>
+              <FileName>systick.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Systick\systick.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2442,6 +2472,16 @@
               <FileName>iic.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\IIC\iic.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Systick</GroupName>
+          <Files>
+            <File>
+              <FileName>systick.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Systick\systick.c</FilePath>
             </File>
           </Files>
         </Group>

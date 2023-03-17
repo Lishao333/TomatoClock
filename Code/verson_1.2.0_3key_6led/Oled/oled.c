@@ -823,9 +823,8 @@ void OLED_ShowStringControl (char* str, int len)
 	OLED_Refresh();
 }
 
-void OLED_ClearAll ()
+void OLED_ClearAllShowStringInfo ()
 {
-	OLED_Clear();
 	ResetCursorInfo ();
 	ClearAllShowStrInfo ();
 }
@@ -859,20 +858,15 @@ void OLED_BackSpace ()
 
 void OLED_ShowStringProcess ()
 {
-	static uint32_t remian_sec_old = 0;
 	uint32_t remian_sec = get_led_work_remain_s ()%60;
 	uint8_t remain_min = get_led_work_remain_s ()/60;
 	uint8_t remain_hour = remain_min/60;
 	char remaine_work_time[20] = {0};
+
+	sprintf(remaine_work_time, "Remain Work Time:\n    %02d:%02d:%02d", remain_hour, remain_min, remian_sec);
 	
-	if (remian_sec_old != remian_sec)
-	{
-		remian_sec_old = remian_sec;
-		sprintf(remaine_work_time, "%d:%d:%d", remain_hour, remain_min, remian_sec);
-		
-		OLED_ClearAll ();
-		OLED_ShowStringControl (remaine_work_time, strlen(remaine_work_time));
-	}
+	OLED_ClearAllShowStringInfo ();
+	OLED_ShowStringControl (remaine_work_time, strlen(remaine_work_time));
 }
 /////////////////////////////////////////////////////////////////////////////////
 #endif

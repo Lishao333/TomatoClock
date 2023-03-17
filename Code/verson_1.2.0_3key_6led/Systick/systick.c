@@ -1,6 +1,6 @@
 /*!
-    \file    gd32f10x_it.c
-    \brief   interrupt service routines
+    \file    systick.c
+    \brief   the systick configuration file
     
     \version 2014-12-26, V1.0.0, firmware for GD32F10x
     \version 2017-06-20, V2.0.0, firmware for GD32F10x
@@ -35,109 +35,76 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 OF SUCH DAMAGE.
 */
 
-#include "gd32f10x_it.h"
-#include "main.h"
+#include "gd32f10x.h"
+#include "systick.h"
 
-/*!
-    \brief      this function handles NMI exception
-    \param[in]  none
-    \param[out] none
-    \retval     none
-*/
-void NMI_Handler(void)
+static unsigned int sys_tick_ms  = 0;
+static unsigned int sys_tick_s   = 0;
+static unsigned int sys_tick_m   = 0;
+static unsigned int sys_tick_h   = 0;
+void relash_sys_tcik_ms ()
 {
+	//Prevent boundary problems from happening.
+	if (sys_tick_ms <= 4294967000) //the max value of unsigned int is 4294967295
+		sys_tick_ms++;
+	else 
+		sys_tick_ms = 0;
+	
+	if (sys_tick_ms>=1000 && sys_tick_ms%1000==0)
+	{
+		if (sys_tick_s <= 4294967200) //the max value of unsigned int is 4294967295
+			sys_tick_s++;
+		else 
+			sys_tick_s = 0;
+	}
+	
+	if (sys_tick_s>=60 && sys_tick_s%60==0)
+	{
+		if (sys_tick_m <= 4294967200) //the max value of unsigned int is 4294967295
+			sys_tick_m++;
+		else 
+			sys_tick_m = 0;
+	}
+	
+	if (sys_tick_m>=60 && sys_tick_m%60==0)
+	{
+		if (sys_tick_h <= 4294967200) //the max value of unsigned int is 4294967295
+			sys_tick_h++;
+		else 
+			sys_tick_h = 0;
+	}
+}
+unsigned int get_sys_tick_ms ()
+{
+	return sys_tick_ms;
+}
+unsigned int get_sys_tick_s ()
+{
+	return sys_tick_s;
+}
+unsigned int get_sys_tick_m ()
+{
+	return sys_tick_m;
+}
+unsigned int get_sys_tick_h ()
+{
+	return sys_tick_h;
 }
 
 /*!
-    \brief      this function handles HardFault exception
+    \brief      init systick
     \param[in]  none
     \param[out] none
     \retval     none
 */
-void HardFault_Handler(void)
+void systick_init(void)
 {
-    /* if Hard Fault exception occurs, go to infinite loop */
-    while(1){
+    /* setup systick timer for 1000Hz interrupts */
+    if (SysTick_Config(SystemCoreClock / 1000U)){
+        /* capture error */
+        while (1){
+        }
     }
-}
-
-/*!
-    \brief      this function handles MemManage exception
-    \param[in]  none
-    \param[out] none
-    \retval     none
-*/
-void MemManage_Handler(void)
-{
-    /* if Memory Manage exception occurs, go to infinite loop */
-    while(1){
-    }
-}
-
-/*!
-    \brief      this function handles BusFault exception
-    \param[in]  none
-    \param[out] none
-    \retval     none
-*/
-void BusFault_Handler(void)
-{
-    /* if Bus Fault exception occurs, go to infinite loop */
-    while(1){
-    }
-}
-
-/*!
-    \brief      this function handles UsageFault exception
-    \param[in]  none
-    \param[out] none
-    \retval     none
-*/
-void UsageFault_Handler(void)
-{
-    /* if Usage Fault exception occurs, go to infinite loop */
-    while(1){
-    }
-}
-
-/*!
-    \brief      this function handles SVC exception
-    \param[in]  none
-    \param[out] none
-    \retval     none
-*/
-void SVC_Handler(void)
-{
-}
-
-/*!
-    \brief      this function handles DebugMon exception
-    \param[in]  none
-    \param[out] none
-    \retval     none
-*/
-void DebugMon_Handler(void)
-{
-}
-
-/*!
-    \brief      this function handles PendSV exception
-    \param[in]  none
-    \param[out] none
-    \retval     none
-*/
-void PendSV_Handler(void)
-{
-}
-
-/*!
-    \brief      this function handles SysTick exception
-    \param[in]  none
-    \param[out] none
-    \retval     none
-*/
-void relash_sys_tcik_ms ();
-void SysTick_Handler(void)
-{
-	relash_sys_tcik_ms ();
+    /* configure the systick handler priority */
+    NVIC_SetPriority(SysTick_IRQn, 0x00U);
 }

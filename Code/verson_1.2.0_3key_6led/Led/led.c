@@ -1,11 +1,12 @@
-#include "gd32f10x.h"
-#include "gd32f10x_eval.h"
-#include "delay.h"
 #include <stdio.h>
 
+#include "gd32f10x_it.h"
+#include "gd32f10x.h"
+#include "gd32f10x_eval.h"
 #include "main.h"
 #include "led.h"
-#include "gd32f10x_it.h"
+#include "delay.h"
+#include "systick.h"
 
 // LED /////////////////////////////////////////////////////////////////////////////
 void led_init()
@@ -35,6 +36,11 @@ void togle_led_level (uint32_t led_work_pin)
 		gpio_bit_reset(LED_PORT, led_work_pin);
 	else if (level_now == 0)
 		gpio_bit_set(LED_PORT, led_work_pin);
+}
+void update_led_work_pin (uint32_t led_work_pin)
+{
+	led_off (ALL_LED_WORK_PIN);
+	led_on (led_work_pin);
 }
 
 LED_WORK_t led_work = {0};
@@ -91,7 +97,9 @@ void updata_led_work_remain_s ()
 	unsigned int led_work_end_s = get_led_work_end_s ();
 	
 	if (led_work_end_s > sys_time_now_s)
-		led_work.remain_s = led_work_end_s - sys_time_now_s;	
+		led_work.remain_s = led_work_end_s - sys_time_now_s;
+	else
+		led_work.remain_s = 0;
 }
 unsigned int get_led_work_remain_s ()
 {
@@ -106,18 +114,18 @@ void desable_and_clear_led_work ()
 	led_work.num_s = 0;
 	led_work.end_s = 0;
 	led_work.remain_s = 0;
-	set_led_work_stauts (LED_OFF);
+	led_work.start_s = 0;
 	
 	led_off (ALL_LED_WORK_PIN);
 	DEB_LOG("desable_and_clear_led_work(): Desable led and clear led work time!!!\r\n");
 }
-uint32_t get_led_work_pin ()
+uint32_t get_led_work_pin (unsigned int led_work_peroid)
 {
 	uint32_t led_work_pin = 0;
-	unsigned int led_work_peroid = get_led_work_remain_s ();
-	
+
 	if (led_work_peroid <= 0)
 	{
+		set_led_work_stauts (LED_OFF);
 		return 0;
 	}
 	else if (led_work_peroid > 0
@@ -160,10 +168,12 @@ uint32_t get_led_work_pin ()
 void led_flash (int times, unsigned int peroid_ms)
 {
 	int i = 0;
-	uint32_t led_work_pin = get_led_work_pin ();
+	uint32_t led_work_pin = get_led_work_pin (get_led_work_remain_s());
 	
-	for (i=0; i<times; i++)
+	led_work.flash_times = 0;
+	while (led_work.flash_times<=times)
 	{
+		//DEB_LOG("do_led_work(): Reseting...\r\n");
 		led_work.flash_ms_new = get_sys_tick_ms();
 		if (led_work.flash_ms_new - led_work.flash_ms_old >= peroid_ms)
 		{
@@ -172,67 +182,13 @@ void led_flash (int times, unsigned int peroid_ms)
 			togle_led_level (led_work_pin);
 		}
 	}
-}
-void do_led_work ()
-{
-	uint32_t led_work_pin_new = 0;
-	static uint32_t led_work_pin_old = 0;
-	
-	updata_led_work_remain_s ();
-	
-	if (LED_FLASH == get_led_work_stauts()) //reset led work
-	{
-		//DEB_LOG("do_led_work(): Reseting...\r\n");
-		led_flash(LED_FLASH_TIMES, LED_FLASH_PEROID_MS);
-		
-		if (get_led_work_flash_times() >= LED_FLASH_TIMES)
-		{
-			DEB_LOG("do_led_work(): Reset led work!!!\r\n");
-			desable_and_clear_led_work ();
-		}
-	}
-	else //Led normal work
-	{		
-		/* only when num of working led has changed, execute this function */
-		led_work_pin_new = get_led_work_pin ();
-		if (led_work_pin_old != led_work_pin_new) 
-		{
-			led_work_pin_old = led_work_pin_new;
-			if (get_led_work_stauts () == LED_ON)
-			{
-				led_on (led_work_pin_new);
-				DEB_LOG("do_led_work(): Change led work pin(0x%x)!!!\r\n", led_work_pin_new);
-			}
-			else if (get_led_work_stauts () == LED_ON)
-			{
-				desable_and_clear_led_work ();
-				DEB_LOG("do_led_work(): Change led work pin(0x%x)!!!\r\n", led_work_pin_new);
-			}		
-		}
-	}
-}
-void check_led_work ()
-{
-	uint32_t led_work_pin = get_led_work_pin ();
-	int level_now = gpio_input_bit_get(LED_PORT, led_work_pin);
-	
-	if (get_led_work_stauts() == LED_ON
-		&& level_now != LED_ON)
-	{
-		led_work_pin = get_led_work_pin ();
-		led_on (led_work_pin);
-	}
-	else if (get_led_work_stauts() == LED_OFF
-			&& level_now != LED_OFF)
-	{
-		desable_and_clear_led_work ();
-	}
+	desable_and_clear_led_work ();
 }
 
 void add_led_work_peroid (int peroids)
 {
 	set_led_work_stauts (LED_ON);
-	set_led_work_time (peroids*LED_WORK_PEROID_10_MIN);
+	set_led_work_time (peroids*LED_WORK_PEROID_BASE);
 	DEB_LOG("add_led_work_peroid(): Add led work time: %d seconds, Remain work time: %d seconds\r\n", peroids*LED_WORK_PEROID_10_MIN,  get_led_work_remain_s());
 }
 void reset_led_work_peroid ()
@@ -248,7 +204,25 @@ void reset_led_work_peroid ()
 }
 void led_work_process ()
 {
-	check_led_work ();
-	do_led_work ();
+	uint32_t led_work_pin_new = 0;
+	static uint32_t led_work_pin_old = 0;
+	
+	updata_led_work_remain_s ();
+	
+	if (LED_FLASH == get_led_work_stauts()) //reset led work
+	{
+		led_flash(LED_FLASH_TIMES, LED_FLASH_PEROID_MS);
+	}
+	else //Led normal work
+	{		
+		/* only when num of working led has changed, execute this function */
+		led_work_pin_new = get_led_work_pin (get_led_work_remain_s());
+		if (led_work_pin_old != led_work_pin_new) 
+		{
+			led_work_pin_old = led_work_pin_new;
+			update_led_work_pin (led_work_pin_new);
+			DEB_LOG("do_led_work(): Change led work pin(0x%x)!!!\r\n", led_work_pin_new);
+		}
+	}
 }
 /////////////////////////////////////////////////////////////////////////////////////

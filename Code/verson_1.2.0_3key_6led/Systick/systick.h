@@ -1,6 +1,6 @@
 /*!
-    \file    main.c
-    \brief   running led
+    \file    systick.h
+    \brief   the header file of systick
     
     \version 2014-12-26, V1.0.0, firmware for GD32F10x
     \version 2017-06-20, V2.0.0, firmware for GD32F10x
@@ -35,91 +35,15 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 OF SUCH DAMAGE.
 */
 
-#include <stdio.h>
+#ifndef SYS_TICK_H
+#define SYS_TICK_H
 
-#include "gd32f10x.h"
-#include "gd32f10x_eval.h"
-#include "delay.h"
-#include "systick.h"
-#include "main.h"
-#include "led.h"
-#include "key.h"
-#include "OLED.h"
-#include "uart.h"
-#include "iic.h"
+#include <stdint.h>
 
-#define FOUNCTION_TEST_ENABLE    0
-void FunctionTest ()
-{
-	char test_str[30] = {"Hello LiShaolin 112233\n"};
-		
-	//OLED_Test ();
-	OLED_ClearAllShowStringInfo ();
-	OLED_ShowStringControl (test_str, strlen(test_str));
-	/*
-	delay_ms(1000);
-	OLED_BackSpace ();
-	delay_ms(1000);
-	OLED_BackSpace ();
-	delay_ms(1000);
-	OLED_BackSpace ();
-	delay_ms(1000);
-	*/
-	OLED_ShowStringControl (test_str, strlen(test_str));
+void systick_init(void);
 	
-	OLED_ShowStringControl (test_str, strlen(test_str));
-	while(1)
-	{
-#if 0		
-		//iic test
-		OLED_SCLK_Clr();
-		delay_ms(1000);
-		OLED_SCLK_Set();
-		delay_ms(1000);
-#endif
-#if 1		
-		//oled test
-		//OLED_ShowString_612 (LINE_612_0, ROW_612_0, test_str, strlen(test_str));
-#endif		
-		delay_ms(1000);
-		printf("FunctionTest():Test...\r\n");
-	}
-}
-
-// main /////////////////////////////////////////////////////////////////////////////
-/*!
-    \brief      main function
-    \param[in]  none
-    \param[out] none
-    \retval     none
-*/
-int main(void)
-{
-	char start_log[50] = {0};
-	int ret = 0;
-	led_init();
-	key_init();
-	delay_init();
-	systick_init();
-    pc_com_init();
-	iic_init();
-	OLED_Init();
-	DefaultSetCharSizeSetInfo ();
-	init_key_press ();
-	
-    sprintf(start_log, "SOFT_VER: %s \nISSUE_DATA: %s \n", SOFT_VER, ISSUE_DATA);
-	OLED_ShowStringControl (start_log, strlen(start_log));
-	delay_ms(1000);
-	OLED_Clear();
-	
-#if !FOUNCTION_TEST_ENABLE	
-	while(1)
-	{
-		key_process();
-		led_work_process ();
-		OLED_ShowStringProcess ();
-	}
-#else	
-	FunctionTest ();
-#endif	
-}
+unsigned int get_sys_tick_ms ();
+unsigned int get_sys_tick_s ();
+unsigned int get_sys_tick_m ();
+unsigned int get_sys_tick_h ();
+#endif /* SYS_TICK_H */

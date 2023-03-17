@@ -62,7 +62,6 @@ void delay_init(void)
 	TMR_DISABEL();
 }
 
-
 /*----------------------------------------------------------------------------------
 Function   :DELAY_TIMER_IRQHandler
 Description:¶¨Ê±Æ÷ÖÐ¶Ï
@@ -75,7 +74,6 @@ void DELAY_TIMER_IRQHandler(void)
 	TMR_CLR_FLAG();
     us_count++;
 }
-
 
 /*----------------------------------------------------------------------------------
 Function   :Delay_1us

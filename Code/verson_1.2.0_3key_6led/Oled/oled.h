@@ -321,7 +321,7 @@ void PrintfShowStrInfo ();
 
 void OLED_ShowStringControl (char* str, int len);
 
-void OLED_ClearAll ();
+void OLED_ClearAllShowStringInfo ();
 
 void OLED_BackSpace ();
 
